@@ -1,0 +1,23 @@
+{
+  "name": "kbucketh",
+  "version": "0.0.1",
+  "description": "🗑 KBucket implementation with Ethereum addresses as ids",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Horyus/kbucketh.git"
+  },
+  "keywords": [
+    "kbucket",
+    "ethereum",
+    "p2p",
+    "routing"
+  ],
+  "author": "Iulian Rotaru",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Horyus/kbucketh/issues"
+  },
+  "homepage": "https://github.com/Horyus/kbucketh#readme"
+}
