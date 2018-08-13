@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target" : "es5",
+    "lib": ["es5", "es6", "dom", "es2015"],
+    "sourceMap": false,
+    "outDir": "./",
+    "allowJs": true,
+    "types" : [ "node" ],
+    "module" : "commonjs"
+  },
+  "exclude": [
+    "node_modules"
+  ],
+  "include": [
+    "./typings.d.ts",
+    "./ts_sources/index.ts",
+
+    "./ts_sources/sources/KBucketh.ts"
+  ]
+}
