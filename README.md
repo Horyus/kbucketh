@@ -9,3 +9,4 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Build Status](https://travis-ci.org/Horyus/kbucketh.svg?branch=develop)](https://travis-ci.org/Horyus/kbucketh)
 [![Code Coverage](https://codecov.io/gh/Horyus/kbucketh/branch/develop/graph/badge.svg)](https://codecov.io/gh/Horyus/kbucketh)
+---
