@@ -6,7 +6,8 @@
     "outDir": "./",
     "allowJs": true,
     "types" : [ "node" ],
-    "module" : "commonjs"
+    "module" : "commonjs",
+    "downlevelIteration": true
   },
   "exclude": [
     "node_modules"
@@ -15,6 +16,7 @@
     "./typings.d.ts",
     "./ts_sources/index.ts",
 
-    "./ts_sources/sources/KBucketh.ts"
+    "./ts_sources/sources/KBucketh.ts",
+    "./ts_sources/sources/Utility.ts"
   ]
 }
