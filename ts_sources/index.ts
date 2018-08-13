@@ -1,1 +1,1 @@
-export {KBucketh} from './sources/KBucketh';
+export { KBucketh } from './sources/KBucketh';
