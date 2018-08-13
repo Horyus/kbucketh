@@ -41,3 +41,25 @@ export function deserialize(id: Uint8Array): string {
         throw new Error(`Invalid deserialization request on ${JSON.stringify([].slice.call(id))}`);
     }
 }
+
+/**
+ * Calculates distance value between two IDs. Mainly used when requesting
+ * nearest nodes stored in the buckets.
+ *
+ * @param {Uint8Array} id_one
+ * @param {Uint8Array} id_two
+ */
+export function distance(id_one: Uint8Array, id_two: Uint8Array): number {
+    return 0;
+}
+
+/**
+ * Calculates first bit difference between two IDs. Mainly used to find
+ * in which bucket an ID belongs.
+ *
+ * @param {Uint8Array} id_one
+ * @param {Uint8Array} id_two
+ */
+export function bitDistance(id_one: Uint8Array, id_two: Uint8Array): number {
+    return 0;
+}

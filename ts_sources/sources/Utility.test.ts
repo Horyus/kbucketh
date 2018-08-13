@@ -2,7 +2,8 @@ declare var describe;
 declare var test;
 declare var expect;
 
-import { serialize, deserialize } from './Utility';
+import { serialize, deserialize, distance, bitDistance } from './Utility';
+import * as RandomString from 'randomstring';
 import * as _ from 'lodash';
 
 const valid_address_with_prefix = '0x9Da2FbFf722be805ce3618CFDeF731d50aDBcB27';
@@ -59,4 +60,26 @@ describe('Utility Test Suite', () => {
         });
 
     });
+
+    const ids = [];
+    for (let generate_idx = 0; generate_idx < 10; ++generate_idx) {
+        ids.push(serialize('0x' + RandomString.generate({length: 40, charset: 'hex'})));
+    }
+
+    describe('distance', () => {
+
+        test('Testing different addresses', () => {
+            expect(distance(ids[0], ids[1])).toBe(0);
+        });
+
+    });
+
+    describe('bitDistance', () => {
+
+        test('Testing different addresses', () => {
+            expect(bitDistance(ids[0], ids[1])).toBe(0);
+        });
+
+    });
+
 });
