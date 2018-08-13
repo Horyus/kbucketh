@@ -50,7 +50,13 @@ export function deserialize(id: Uint8Array): string {
  * @param {Uint8Array} id_two
  */
 export function distance(id_one: Uint8Array, id_two: Uint8Array): number {
-    return 0;
+
+    let distance = 0;
+    for (let idx = 0; idx < id_one.length && idx < id_two.length; ++idx) {
+        distance += (distance * 256) + (id_one[idx] ^ id_two[idx]);
+    }
+
+    return distance;
 }
 
 /**
@@ -61,5 +67,14 @@ export function distance(id_one: Uint8Array, id_two: Uint8Array): number {
  * @param {Uint8Array} id_two
  */
 export function bitDistance(id_one: Uint8Array, id_two: Uint8Array): number {
-    return 0;
+    let distance = 0;
+
+    for (let idx = 0; idx < id_one.length && idx < id_two.length; ++idx) {
+        for (let bit_idx = 7; bit_idx >= 0; --bit_idx) {
+            if (((id_one[idx] >> bit_idx) & 1) !== ((id_two[idx] >> bit_idx) & 1)) return (distance + (7 - bit_idx));
+        }
+        distance += 8;
+    }
+
+    return distance;
 }

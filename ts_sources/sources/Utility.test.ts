@@ -65,11 +65,25 @@ describe('Utility Test Suite', () => {
     for (let generate_idx = 0; generate_idx < 10; ++generate_idx) {
         ids.push(serialize('0x' + RandomString.generate({length: 40, charset: 'hex'})));
     }
+    ids.push(serialize('0x0000000000000000000000000000000000000000'));
+    ids.push(serialize('0xffffffffffffffffffffffffffffffffffffffff'));
+    ids.push(serialize('0x0000000000000000000000000000000000000001'));
+    ids.push(serialize('0x0000000000000000000000000000000000000100'));
+    ids.push(serialize('0x0000000000000000000000000000010000000000'));
+    ids.push(serialize('0x1010101010101010101010101010101010101010'));
 
     describe('distance', () => {
 
-        test('Testing different addresses', () => {
-            expect(distance(ids[0], ids[1])).toBe(0);
+        test('Testing same address', () => {
+            expect(distance(ids[0], ids[0])).toBe(0);
+        });
+
+        test('Testing different address', () => {
+            expect(distance(ids[0], ids[1])).not.toBe(0);
+        });
+
+        test('Testing highest and lowest', () => {
+            expect(distance(ids[10], ids[11])).not.toBe(0);
         });
 
     });
@@ -77,7 +91,16 @@ describe('Utility Test Suite', () => {
     describe('bitDistance', () => {
 
         test('Testing different addresses', () => {
-            expect(bitDistance(ids[0], ids[1])).toBe(0);
+            expect(bitDistance(ids[10], ids[12])).toBe(159);
+            expect(bitDistance(ids[10], ids[13])).toBe(151);
+            expect(bitDistance(ids[10], ids[14])).toBe(119);
+        });
+
+        test('Testing same address', () => {
+            expect(bitDistance(ids[0], ids[0])).toBe(160);
+            expect(bitDistance(ids[10], ids[10])).toBe(160);
+            expect(bitDistance(ids[11], ids[11])).toBe(160);
+            expect(bitDistance(ids[15], ids[15])).toBe(160);
         });
 
     });
