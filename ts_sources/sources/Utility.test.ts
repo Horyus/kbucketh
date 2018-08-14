@@ -22,20 +22,24 @@ describe('Utility Test Suite', () => {
     describe('serialize', () => {
 
         test('Testing valid addresses', () => {
+
             const initial = serialize(valid_address_with_prefix);
             expect(_.isEqual(serialize(valid_address_without_prefix), initial)).toBe(true);
             expect(_.isEqual(serialize(valid_address_with_prefix_lowercase), initial)).toBe(true);
             expect(_.isEqual(serialize(valid_address_without_prefix_lowercase), initial)).toBe(true);
             expect(_.isEqual(serialize(valid_buffer_address), initial)).toBe(true);
+
         });
 
         test('Testing invalid address', (done: Done) => {
+
             try {
                 serialize(invalid_address);
                 done(new Error('Should have thrown'));
             } catch (e) {
                 done();
             }
+
         });
 
     });
@@ -43,20 +47,24 @@ describe('Utility Test Suite', () => {
     describe('deserialize', () => {
 
         test('Testing valid addresses', () => {
+
             expect(deserialize(serialize(valid_address_with_prefix))).toBe(valid_address_with_prefix);
             expect(deserialize(serialize(valid_address_without_prefix))).toBe(valid_address_with_prefix);
             expect(deserialize(serialize(valid_address_with_prefix_lowercase))).toBe(valid_address_with_prefix);
             expect(deserialize(serialize(valid_address_without_prefix_lowercase))).toBe(valid_address_with_prefix);
             expect(deserialize(serialize(valid_buffer_address))).toBe(valid_address_with_prefix);
+
         });
 
-        test('Testing invalid addresse', (done: Done) => {
+        test('Testing invalid address', (done: Done) => {
+
             try {
                 deserialize(serialize(valid_address_with_prefix).slice(2));
                 done(new Error('Should have thrown'));
             } catch (e) {
                 done();
             }
+
         });
 
     });
@@ -75,15 +83,21 @@ describe('Utility Test Suite', () => {
     describe('distance', () => {
 
         test('Testing same address', () => {
+
             expect(distance(ids[0], ids[0])).toBe(0);
+
         });
 
         test('Testing different address', () => {
+
             expect(distance(ids[0], ids[1])).not.toBe(0);
+
         });
 
         test('Testing highest and lowest', () => {
+
             expect(distance(ids[10], ids[11])).not.toBe(0);
+
         });
 
     });

@@ -50,12 +50,10 @@ export function deserialize(id: Uint8Array): string {
  * @param {Uint8Array} id_two
  */
 export function distance(id_one: Uint8Array, id_two: Uint8Array): number {
-
     let distance = 0;
     for (let idx = 0; idx < id_one.length && idx < id_two.length; ++idx) {
-        distance += (distance * 256) + (id_one[idx] ^ id_two[idx]);
+        distance = (distance * 256) + (id_one[idx] ^ id_two[idx]);
     }
-
     return distance;
 }
 
