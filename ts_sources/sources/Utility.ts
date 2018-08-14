@@ -24,7 +24,7 @@ export function serialize(id: any): Uint8Array {
         result.push(parseInt(id.substr(idx, 2), 16));
     }
 
-    return new Uint8Array(result);
+    return new Uint8Array(result.reverse());
 }
 
 /**
@@ -37,9 +37,13 @@ export function deserialize(id: Uint8Array): string {
     try {
         let result = '';
 
+        id = id.reverse();
+
         for (const val of id) {
             result += (val < 16) ? ('0' + val.toString(16)) : val.toString(16);
         }
+
+        id = id.reverse();
 
         return (Web3Utils.toChecksumAddress('0x' + result));
     } catch (e) {
@@ -57,7 +61,7 @@ export function deserialize(id: Uint8Array): string {
 export function distance(id_one: Uint8Array, id_two: Uint8Array): number {
     let distance = 0;
     for (let idx = 0; idx < id_one.length && idx < id_two.length; ++idx) {
-        distance = (distance * 256) + (id_one[idx] ^ id_two[idx]);
+        distance += (id_one[idx] ^ id_two[idx]) * (2 ** ((idx) * 8));
     }
     return distance;
 }
@@ -70,16 +74,10 @@ export function distance(id_one: Uint8Array, id_two: Uint8Array): number {
  * @param {Uint8Array} id_two
  */
 export function bitDistance(id_one: Uint8Array, id_two: Uint8Array): number {
-    let distance = 0;
+    const dist = distance(id_one, id_two);
 
-    for (let idx = 0; idx < id_one.length && idx < id_two.length; ++idx) {
-        for (let bit_idx = 0; bit_idx <= 7; ++bit_idx) {
-            if (((id_one[idx] >> bit_idx) & 1) !== ((id_two[idx] >> bit_idx) & 1)) return (distance + (7 - bit_idx));
-        }
-        distance += 8;
-    }
-
-    return distance;
+    for (let idx = 159; idx >= 0; --idx) if (2 ** idx <= dist && dist < 2 ** (idx + 1)) return idx;
+    return 0;
 }
 
 export function getBucketByID(id: number, kbk: KBucketh): KBucketh {
@@ -89,8 +87,8 @@ export function getBucketByID(id: number, kbk: KBucketh): KBucketh {
 }
 
 export function getFirst(kbk: KBucketh): KBucketh {
-    if (kbk.BucketID !== 0 && kbk.left) {
-        return getFirst(kbk.left);
+    if (kbk.BucketID !== 0 && kbk.right) {
+        return getFirst(kbk.right);
     }
     return kbk;
 }
@@ -112,15 +110,15 @@ const logger = new Signale({
 
 export function print(kbk: KBucketh): void {
     kbk = getFirst(kbk);
-    for (let navigator_idx = 0; navigator_idx < kbk.BucketID; ++navigator_idx) {
+    for (let navigator_idx = 159; navigator_idx > kbk.BucketID; --navigator_idx) {
         logger.warn(`[ Bucket ID ${navigator_idx} ]`);
     }
     let last_id = kbk.BucketID;
-    for (let navigator = kbk; navigator !== null; navigator = navigator.right) {
+    for (let navigator = kbk; navigator !== null; navigator = navigator.left) {
         logger.info(`[ Bucket ID ${navigator.BucketID} ]\t\t[ Bucket ${navigator.size} ]\t[ Waitlist ${navigator.waitlist_size} ]`);
         last_id = navigator.BucketID;
     }
-    for (let navigator_idx = last_id + 1; navigator_idx < 160; ++navigator_idx) {
+    for (let navigator_idx = last_id - 1; navigator_idx >= 0; --navigator_idx) {
         logger.warn(`[ Bucket ID ${navigator_idx} ]`);
     }
 }

@@ -5,10 +5,9 @@ import * as _ from 'lodash';
  * Interface used to store in which bucket every ID is stored.
  * Shared between all buckets.
  */
-interface IPeerIdRegistry {
-    [key: string]: number;
+interface ISharedPeerRegistry {
+    peers: Uint8Array[];
 }
-
 /**
  * Configuration interface for the {@link KBucketh} creator.
  */
@@ -25,10 +24,10 @@ export interface ICreateConfig {
  * @param {ICreateConfig} config Configuration for the KBucketh.
  */
 export function create(peer_id: any, config?: ICreateConfig): KBucketh {
-    const shared_peer_registry = {} as IPeerIdRegistry;
+    const shared_peer_registry = {peers: []} as ISharedPeerRegistry;
     return (new KBucketh(
             peer_id,
-            config ? (config.bit_distance || 0) : 0,
+            config ? (config.bit_distance || 159) : 159,
             shared_peer_registry,
             config ? (config.bucket_size || 20) : 20)
     );
@@ -157,7 +156,7 @@ export class KBucketh {
     private readonly _peer_id: Uint8Array;
     private readonly _deserialized_peer_id: string;
     private readonly _bit_distance: number;
-    private readonly _peer_id_registry: IPeerIdRegistry;
+    private readonly _peer_id_registry: ISharedPeerRegistry;
     private readonly _bucket_size: number;
     private _bucket: IPeerRegistry = [];
     private _waitlist_bucket: IPeerRegistry = [];
@@ -170,10 +169,10 @@ export class KBucketh {
     /**
      * @param {any} peer_id ID of the local Peer.
      * @param {number} bit_distance Bit distance of the current KBucketh.
-     * @param {IPeerIdRegistry} peer_id_registry Shared Peer Registry
+     * @param {ISharedPeerRegistry} peer_id_registry Shared Peer Registry
      * @param {number} bucket_size Size of the bucket.
      */
-    public constructor(peer_id: any, bit_distance: number, peer_id_registry: IPeerIdRegistry, bucket_size: number) {
+    public constructor(peer_id: any, bit_distance: number, peer_id_registry: ISharedPeerRegistry, bucket_size: number) {
         this._peer_id = serialize(peer_id);
         this._deserialized_peer_id = deserialize(this._peer_id);
         this._bit_distance = bit_distance;
@@ -197,6 +196,7 @@ export class KBucketh {
                     bit_distance: action.bit_distance,
                     data: action.payload.data
                 });
+                this._peer_id_registry.peers.push(action.peerID);
                 return 0;
             }
         };
@@ -210,6 +210,7 @@ export class KBucketh {
                 (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
 
                 this._bucket = this._bucket.filter((elem: IPeer) => (!_.isEqual(elem.peerID, action.peerID)));
+                this._peer_id_registry.peers = this._peer_id_registry.peers.filter((e: Uint8Array) => !_.isEqual(e, action.peerID));
                 return 0;
 
             } else if (this._waitlist_bucket.filter(
@@ -345,17 +346,7 @@ export class KBucketh {
      * Return true if current KBucketh is removable
      */
     public get removable(): boolean {
-        return (!this._waitlist_bucket.length && !this._bucket.length && this._bit_distance !== 0 && !this._right_bucket);
-    }
-
-    /**
-     * Search in the registry the Bucket ID where the Peer ID is stored.
-     *
-     * @param {any} peer_id ID of the searched Peer.
-     */
-    public bucketIDOf(peer_id: any): number {
-        const deserialized = deserialize(serialize(peer_id));
-        return (this._peer_id_registry[deserialized] || -1);
+        return (!this._waitlist_bucket.length && !this._bucket.length && this._bit_distance !== 0 && !this._left_bucket);
     }
 
     /**
@@ -435,6 +426,20 @@ export class KBucketh {
         return this.exec<IKBKSet>(action_payload);
     }
 
+    public getNearest(peer_id: any, amount: number): string[] {
+        const serialized = serialize(peer_id);
+        return this._peer_id_registry.peers
+            .map((e: Uint8Array) =>
+                ({
+                    id: e,
+                    distance: distance(serialized, e)
+                }))
+            .sort((left: any, right: any) => left.distance - right.distance)
+            .slice(0, amount)
+            .map((e: any) =>
+                deserialize(e.id));
+    }
+
     private run_right<ActionType>(action: IKBKAction<ActionType>): number {
         if (!this._right_bucket) {
             this._right_bucket = new KBucketh(this._peer_id, this._bit_distance + 1, this._peer_id_registry, this._bucket_size);
@@ -470,7 +475,7 @@ export class KBucketh {
         } else {
             if (action.bit_distance !== this._bit_distance) {
                 const res = action.bit_distance < this._bit_distance ? this.run_left(action) : this.run_right(action);
-                if (this._right_bucket && this._right_bucket.removable) this._right_bucket = null;
+                if (this._left_bucket && this._left_bucket.removable) this._left_bucket = null;
                 return res;
             } else {
                 return this.exec<any>((<any> action.payload).action);

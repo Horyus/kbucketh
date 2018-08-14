@@ -107,16 +107,16 @@ describe('Utility Test Suite', () => {
     describe('bitDistance', () => {
 
         test('Testing different addresses', () => {
-            expect(bitDistance(ids[10], ids[12])).toBe(159);
-            expect(bitDistance(ids[10], ids[13])).toBe(151);
-            expect(bitDistance(ids[10], ids[14])).toBe(119);
+            expect(bitDistance(ids[10], ids[12])).toBe(0);
+            expect(bitDistance(ids[10], ids[13])).toBe(8);
+            expect(bitDistance(ids[10], ids[14])).toBe(40);
         });
 
         test('Testing same address', () => {
-            expect(bitDistance(ids[0], ids[0])).toBe(160);
-            expect(bitDistance(ids[10], ids[10])).toBe(160);
-            expect(bitDistance(ids[11], ids[11])).toBe(160);
-            expect(bitDistance(ids[15], ids[15])).toBe(160);
+            expect(bitDistance(ids[0], ids[0])).toBe(0);
+            expect(bitDistance(ids[10], ids[10])).toBe(0);
+            expect(bitDistance(ids[11], ids[11])).toBe(0);
+            expect(bitDistance(ids[15], ids[15])).toBe(0);
         });
 
     });
@@ -136,7 +136,7 @@ describe('Utility Test Suite', () => {
 
         test('Get middle bucket', () => {
             let bucket = create('0x0000000000000000000000000000000000000000');
-            bucket.add<void>('0x0000000000000000000000000000000000000100', void 0);
+            bucket.add<void>('0x0000000000000000000000000000000000000001', void 0);
             bucket = getBucketByID(80, bucket);
             expect(bucket.BucketID).toBe(80);
         });
