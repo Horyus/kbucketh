@@ -45,6 +45,15 @@ export interface IPeer {
 }
 
 /**
+ * Data interface returned from get Method
+ */
+export interface IPeerData {
+    bucketID: number;
+    waitlist: boolean;
+    data: any;
+}
+
+/**
  * Type used to store Peers
  */
 type IPeerRegistry = IPeer[];
@@ -55,6 +64,8 @@ type IPeerRegistry = IPeer[];
 const KBKActionTypes = {
     Add: 'ADD',
     Remove: 'REMOVE',
+    Get: 'GET',
+    Set: 'SET',
     FindAndRun: 'FIND_AND_RUN'
 };
 
@@ -74,6 +85,15 @@ export const KBKRemoveReturn = {
     NotFound: -1,
     RemovedFromBucket: 0,
     RemovedFromWaitlist: 1
+};
+
+/**
+ * Return values of the {@link KBucketh.set} method
+ */
+export const KBKSetReturn = {
+    NotFound: -1,
+    EditedFromBucket: 0,
+    EditedFromWaitlist: 1
 };
 
 /**
@@ -109,10 +129,24 @@ interface IKBKRemove {
 }
 
 /**
+ * Action interface for the Get logic.
+ */
+interface IKBKGet {
+
+}
+
+/**
+ * Action interface for the Set logic.
+ */
+interface IKBKSet {
+    data: any;
+}
+
+/**
  * Interface for the Action functions store.
  */
 interface IActionStore {
-    [key: string]: (action: IKBKAction<any>) => number;
+    [key: string]: (action: IKBKAction<any>) => any;
 }
 
 /**
@@ -186,6 +220,69 @@ export class KBucketh {
 
             } else return -1;
         };
+
+        this._actions[KBKActionTypes.Get] = (action: IKBKAction<IKBKGet>): IPeerData => {
+            if (this._bucket.length === 0) {
+
+                return null;
+
+            } else if (this._bucket.filter(
+                (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
+
+                return {
+                    bucketID: this._bit_distance,
+                    waitlist: false,
+                    data: this._bucket.filter((elem: IPeer) => (_.isEqual(elem.peerID, action.peerID)))[0].data
+                };
+
+            } else if (this._waitlist_bucket.filter(
+                (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
+
+                return {
+                    bucketID: this._bit_distance,
+                    waitlist: true,
+                    data: this._waitlist_bucket.filter((elem: IPeer) => (_.isEqual(elem.peerID, action.peerID)))[0].data
+                };
+
+            } else return null;
+        };
+
+        this._actions[KBKActionTypes.Set] = (action: IKBKAction<IKBKSet>): number => {
+            if (this._bucket.length === 0) {
+
+                return -1;
+
+            } else if (this._bucket.filter(
+                (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
+
+                this._bucket = this._bucket.map((elem: IPeer) => {
+                    if (_.isEqual(elem.peerID, action.peerID)) {
+                        return {
+                            ...elem,
+                            data: action.payload.data
+                        };
+                    } else return elem;
+                });
+
+                return 0;
+
+            } else if (this._waitlist_bucket.filter(
+                (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
+
+                this._waitlist_bucket = this._waitlist_bucket.map((elem: IPeer) => {
+                    if (_.isEqual(elem.peerID, action.peerID)) {
+                        return {
+                            ...elem,
+                            data: action.payload.data
+                        };
+                    } else return elem;
+                });
+
+                return 1;
+
+            } else return -1;
+        };
+
     }
 
     /**
@@ -299,6 +396,43 @@ export class KBucketh {
             bit_distance: bitDistance(this._peer_id, serialized)
         };
         return this.exec<IKBKRemove>(action_payload);
+    }
+
+    /**
+     * Get informations about the given Peer ID. Returns null if the peer is not found
+     *
+     * @param {any} peer_id The Peer ID from which we want informations
+     */
+    public get(peer_id: any): IPeerData {
+        const serialized: Uint8Array = serialize(peer_id);
+        const action_payload: IKBKAction<IKBKGet> = {
+            type: KBKActionTypes.Get,
+            payload: null,
+            peerID: serialized,
+            distance: distance(this._peer_id, serialized),
+            bit_distance: bitDistance(this._peer_id, serialized)
+        };
+        return this.exec<IKBKGet>(action_payload);
+    }
+
+    /**
+     * Set informations about the given Peer ID.
+     *
+     * @param {any} peer_id The Peer ID from which we want to edit
+     * @param data The new data to bind to the Peer
+     */
+    public set<AdditionalData = any>(peer_id: any, data: AdditionalData): IPeerData {
+        const serialized: Uint8Array = serialize(peer_id);
+        const action_payload: IKBKAction<IKBKSet> = {
+            type: KBKActionTypes.Set,
+            payload: {
+                data
+            },
+            peerID: serialized,
+            distance: distance(this._peer_id, serialized),
+            bit_distance: bitDistance(this._peer_id, serialized)
+        };
+        return this.exec<IKBKSet>(action_payload);
     }
 
     private run_right<ActionType>(action: IKBKAction<ActionType>): number {
