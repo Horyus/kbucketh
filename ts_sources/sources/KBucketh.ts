@@ -1,10 +1,11 @@
-import { deserialize, serialize } from './Utility';
+import { bitDistance, deserialize, distance, serialize } from './Utility';
+import * as _ from 'lodash';
 
 /**
  * Interface used to store in which bucket every ID is stored.
  * Shared between all buckets.
  */
-export interface IPeerIdRegistry {
+interface IPeerIdRegistry {
     [key: string]: number;
 }
 
@@ -26,11 +27,92 @@ export interface ICreateConfig {
 export function create(peer_id: any, config?: ICreateConfig): KBucketh {
     const shared_peer_registry = {} as IPeerIdRegistry;
     return (new KBucketh(
-        peer_id,
-        config ? (config.bit_distance || 0) : 0,
-        shared_peer_registry,
-        config ? (config.bucket_size || 20) : 20)
+            peer_id,
+            config ? (config.bit_distance || 0) : 0,
+            shared_peer_registry,
+            config ? (config.bucket_size || 20) : 20)
     );
+}
+
+/**
+ * Interface representing a Peer
+ */
+export interface IPeer {
+    peerID: Uint8Array;
+    distance: number;
+    bit_distance: number;
+    data: any;
+}
+
+/**
+ * Type used to store Peers
+ */
+type IPeerRegistry = IPeer[];
+
+/**
+ * Action types
+ */
+const KBKActionTypes = {
+    Add: 'ADD',
+    Remove: 'REMOVE',
+    FindAndRun: 'FIND_AND_RUN'
+};
+
+/**
+ * Return values of the {@link KBucketh.add} method
+ */
+export const KBKAddReturn = {
+    AlreadyExists: -1,
+    AddedToBucket: 0,
+    AddedToWaitlist: 1
+};
+
+/**
+ * Return values of the {@link KBucketh.remove} method
+ */
+export const KBKRemoveReturn = {
+    NotFound: -1,
+    RemovedFromBucket: 0,
+    RemovedFromWaitlist: 1
+};
+
+/**
+ * Action Interface.
+ */
+interface IKBKAction<ActionType> {
+    type: string;
+    payload: ActionType;
+    peerID: Uint8Array;
+    distance: number;
+    bit_distance: number;
+}
+
+/**
+ * Action Interface for the Find and Run logic.
+ */
+interface IKBKFindAndRun<SubActionType> {
+    action: IKBKAction<SubActionType>;
+}
+
+/**
+ * Action Interface for the Add logic.
+ */
+interface IKBKAdd<AdditionalData = void> {
+    data: AdditionalData;
+}
+
+/**
+ * Action interface for the Remove logic.
+ */
+interface IKBKRemove {
+
+}
+
+/**
+ * Interface for the Action functions store.
+ */
+interface IActionStore {
+    [key: string]: (action: IKBKAction<any>) => number;
 }
 
 /**
@@ -43,9 +125,13 @@ export class KBucketh {
     private readonly _bit_distance: number;
     private readonly _peer_id_registry: IPeerIdRegistry;
     private readonly _bucket_size: number;
+    private _bucket: IPeerRegistry = [];
+    private _waitlist_bucket: IPeerRegistry = [];
 
-    //private _left_bucket: KBucketh = null;
-    //private _right_bucket: KBucketh = null;
+    private _left_bucket: KBucketh = null;
+    private _right_bucket: KBucketh = null;
+
+    private readonly _actions: IActionStore = {};
 
     /**
      * @param {any} peer_id ID of the local Peer.
@@ -59,6 +145,47 @@ export class KBucketh {
         this._bit_distance = bit_distance;
         this._peer_id_registry = peer_id_registry;
         this._bucket_size = bucket_size;
+
+        this._actions[KBKActionTypes.Add] = (action: IKBKAction<IKBKAdd>): number => {
+            if (this._bucket.length === this._bucket_size) {
+                this._waitlist_bucket.push({
+                    peerID: action.peerID,
+                    distance: action.distance,
+                    bit_distance: action.bit_distance,
+                    data: action.payload.data
+                });
+                return 1;
+            } else {
+                if (this._bucket.filter((elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) return -1;
+                this._bucket.unshift({
+                    peerID: action.peerID,
+                    distance: action.distance,
+                    bit_distance: action.bit_distance,
+                    data: action.payload.data
+                });
+                return 0;
+            }
+        };
+
+        this._actions[KBKActionTypes.Remove] = (action: IKBKAction<IKBKRemove>): number => {
+            if (this._bucket.length === 0) {
+
+                return -1;
+
+            } else if (this._bucket.filter(
+                (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
+
+                this._bucket = this._bucket.filter((elem: IPeer) => (!_.isEqual(elem.peerID, action.peerID)));
+                return 0;
+
+            } else if (this._waitlist_bucket.filter(
+                (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
+
+                this._waitlist_bucket = this._waitlist_bucket.filter((elem: IPeer) => (!_.isEqual(elem.peerID, action.peerID)));
+                return 1;
+
+            } else return -1;
+        };
     }
 
     /**
@@ -93,7 +220,35 @@ export class KBucketh {
      * Return the current stored Peer count in this KBucketh.
      */
     public get size(): number {
-        return this._bucket_size;
+        return this._bucket.length;
+    }
+
+    /**
+     * Return the current stored Peer count in this KBucketh's waitlist.
+     */
+    public get waitlist_size(): number {
+        return this._waitlist_bucket.length;
+    }
+
+    /**
+     * Return left KBucketh
+     */
+    public get left(): KBucketh {
+        return this._left_bucket;
+    }
+
+    /**
+     * Return right KBucketh
+     */
+    public get right(): KBucketh {
+        return this._right_bucket;
+    }
+
+    /**
+     * Return true if current KBucketh is removable
+     */
+    public get removable(): boolean {
+        return (!this._waitlist_bucket.length && !this._bucket.length && this._bit_distance !== 0 && !this._right_bucket);
     }
 
     /**
@@ -104,6 +259,89 @@ export class KBucketh {
     public bucketIDOf(peer_id: any): number {
         const deserialized = deserialize(serialize(peer_id));
         return (this._peer_id_registry[deserialized] || -1);
+    }
+
+    /**
+     * Add the given Peer ID to the distributed KBucketh list. It will automatically find
+     * the appropriate KBucketh, and will expand the list if needed.
+     *
+     * @param {any} peer_id Peer ID to add.
+     * @param payload Additional data to add with the peer informations.
+     */
+    public add<AdditionalData = void>(peer_id: any, payload: AdditionalData): number {
+        const serialized: Uint8Array = serialize(peer_id);
+        const action_payload: IKBKAction<IKBKAdd<AdditionalData>> = {
+            type: KBKActionTypes.Add,
+            payload: {
+                data: payload
+            },
+            peerID: serialized,
+            distance: distance(this._peer_id, serialized),
+            bit_distance: bitDistance(this._peer_id, serialized)
+        };
+        return this.exec<IKBKAdd<AdditionalData>>(action_payload);
+    }
+
+    /**
+     * Add the given Peer ID to the distributed KBucketh list. It will automatically find
+     * the appropriate KBucketh, and will expand the list if needed.
+     *
+     * @param {any} peer_id Peer ID to add.
+     * @param payload Additional data to add with the peer informations.
+     */
+    public remove(peer_id: any): number {
+        const serialized: Uint8Array = serialize(peer_id);
+        const action_payload: IKBKAction<IKBKRemove> = {
+            type: KBKActionTypes.Remove,
+            payload: null,
+            peerID: serialized,
+            distance: distance(this._peer_id, serialized),
+            bit_distance: bitDistance(this._peer_id, serialized)
+        };
+        return this.exec<IKBKRemove>(action_payload);
+    }
+
+    private run_right<ActionType>(action: IKBKAction<ActionType>): number {
+        if (!this._right_bucket) {
+            this._right_bucket = new KBucketh(this._peer_id, this._bit_distance + 1, this._peer_id_registry, this._bucket_size);
+            this._right_bucket._left_bucket = this;
+        }
+        return this._right_bucket.exec(action);
+    }
+
+    private run_left<ActionType>(action: IKBKAction<ActionType>): number {
+        if (!this._left_bucket) {
+            this._left_bucket = new KBucketh(this._peer_id, this._bit_distance - 1, this._peer_id_registry, this._bucket_size);
+            this._left_bucket._right_bucket = this;
+        }
+        return this._left_bucket.exec(action);
+    }
+
+    private exec<ActionType>(action: IKBKAction<ActionType>): any {
+        if (action.type !== KBKActionTypes.FindAndRun) {
+            if (action.bit_distance !== this._bit_distance) {
+                const payload: IKBKAction<IKBKFindAndRun<ActionType>> = {
+                    type: KBKActionTypes.FindAndRun,
+                    payload: {
+                        action: action
+                    },
+                    peerID: action.peerID,
+                    distance: action.distance,
+                    bit_distance: action.bit_distance
+                };
+                return this.exec(payload);
+            } else {
+                return this._actions[action.type](action);
+            }
+        } else {
+            if (action.bit_distance !== this._bit_distance) {
+                const res = action.bit_distance < this._bit_distance ? this.run_left(action) : this.run_right(action);
+                if (this._right_bucket && this._right_bucket.removable) this._right_bucket = null;
+                return res;
+            } else {
+                return this.exec<any>((<any> action.payload).action);
+            }
+        }
     }
 
 }

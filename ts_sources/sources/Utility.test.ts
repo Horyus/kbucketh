@@ -1,10 +1,12 @@
+import { create } from './KBucketh';
+
 declare var describe;
 declare var test;
 declare var expect;
 
-import { serialize, deserialize, distance, bitDistance } from './Utility';
-import * as RandomString from 'randomstring';
-import * as _ from 'lodash';
+import { serialize, deserialize, distance, bitDistance, print, getBucketByID } from './Utility';
+import * as RandomString                                                       from 'randomstring';
+import * as _                                                                  from 'lodash';
 
 const valid_address_with_prefix = '0x9Da2FbFf722be805ce3618CFDeF731d50aDBcB27';
 const valid_address_without_prefix = '9Da2FbFf722be805ce3618CFDeF731d50aDBcB27';
@@ -115,6 +117,28 @@ describe('Utility Test Suite', () => {
             expect(bitDistance(ids[10], ids[10])).toBe(160);
             expect(bitDistance(ids[11], ids[11])).toBe(160);
             expect(bitDistance(ids[15], ids[15])).toBe(160);
+        });
+
+    });
+
+    describe('print', () => {
+
+        test('Print from middle', () => {
+            const bucket = create('0x0000000000000000000000000000000000000000', {bit_distance: 1});
+            print(bucket);
+            bucket.add<void>('0x0000000000000000000000000000000000000100', void 0);
+            print(bucket.right.right);
+        });
+
+    });
+
+    describe('getBucketByID', () => {
+
+        test('Get middle bucket', () => {
+            let bucket = create('0x0000000000000000000000000000000000000000');
+            bucket.add<void>('0x0000000000000000000000000000000000000100', void 0);
+            bucket = getBucketByID(80, bucket);
+            expect(bucket.BucketID).toBe(80);
         });
 
     });

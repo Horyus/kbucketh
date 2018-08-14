@@ -1,5 +1,7 @@
-import * as _ from 'lodash';
+import * as _         from 'lodash';
 import * as Web3Utils from 'web3-utils';
+import { KBucketh }   from './KBucketh';
+import { Signale }    from 'signale';
 
 /**
  * Utility function to convert commonly found Ethereum Address formats to
@@ -10,7 +12,10 @@ import * as Web3Utils from 'web3-utils';
  * @param {any} id A commonly formatted Ethereum Address
  */
 export function serialize(id: any): Uint8Array {
+
     if (_.isBuffer(id)) id = id.toString('hex');
+    else if (id instanceof Uint8Array) return id;
+
     if (!Web3Utils.isAddress(id)) throw new Error(`Invalid ID ${id}`);
     if (id.indexOf('0x') === 0) id = id.substr(2);
 
@@ -68,11 +73,54 @@ export function bitDistance(id_one: Uint8Array, id_two: Uint8Array): number {
     let distance = 0;
 
     for (let idx = 0; idx < id_one.length && idx < id_two.length; ++idx) {
-        for (let bit_idx = 7; bit_idx >= 0; --bit_idx) {
+        for (let bit_idx = 0; bit_idx <= 7; ++bit_idx) {
             if (((id_one[idx] >> bit_idx) & 1) !== ((id_two[idx] >> bit_idx) & 1)) return (distance + (7 - bit_idx));
         }
         distance += 8;
     }
 
     return distance;
+}
+
+export function getBucketByID(id: number, kbk: KBucketh): KBucketh {
+    if (id === kbk.BucketID) return kbk;
+    if (id < kbk.BucketID) return (kbk.left ? getBucketByID(id, kbk.left) : kbk);
+    else return (kbk.right ? getBucketByID(id, kbk.right) : kbk);
+}
+
+export function getFirst(kbk: KBucketh): KBucketh {
+    if (kbk.BucketID !== 0 && kbk.left) {
+        return getFirst(kbk.left);
+    }
+    return kbk;
+}
+
+const logger = new Signale({
+    types: {
+        info: {
+            badge: '❕',
+            color: 'blueBright',
+            label: 'k-BuckΞth'
+        },
+        warn: {
+            badge: '❗️',
+            color: 'yellow',
+            label: 'k-BuckΞth'
+        }
+    }
+});
+
+export function print(kbk: KBucketh): void {
+    kbk = getFirst(kbk);
+    for (let navigator_idx = 0; navigator_idx < kbk.BucketID; ++navigator_idx) {
+        logger.warn(`[ Bucket ID ${navigator_idx} ]`);
+    }
+    let last_id = kbk.BucketID;
+    for (let navigator = kbk; navigator !== null; navigator = navigator.right) {
+        logger.info(`[ Bucket ID ${navigator.BucketID} ]\t\t[ Bucket ${navigator.size} ]\t[ Waitlist ${navigator.waitlist_size} ]`);
+        last_id = navigator.BucketID;
+    }
+    for (let navigator_idx = last_id + 1; navigator_idx < 160; ++navigator_idx) {
+        logger.warn(`[ Bucket ID ${navigator_idx} ]`);
+    }
 }
