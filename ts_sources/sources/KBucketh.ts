@@ -44,8 +44,8 @@ export class KBucketh {
     private readonly _peer_id_registry: IPeerIdRegistry;
     private readonly _bucket_size: number;
 
-    private _left_bucket: KBucketh = null;
-    private _right_bucket: KBucketh = null;
+    //private _left_bucket: KBucketh = null;
+    //private _right_bucket: KBucketh = null;
 
     /**
      * @param {any} peer_id ID of the local Peer.
