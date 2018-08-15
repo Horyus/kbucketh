@@ -41,6 +41,7 @@ export interface IPeer {
     distance: number;
     bit_distance: number;
     data: any;
+    last_action: number;
 }
 
 /**
@@ -65,6 +66,7 @@ const KBKActionTypes = {
     Remove: 'REMOVE',
     Get: 'GET',
     Set: 'SET',
+    Update: 'UPDATE',
     FindAndRun: 'FIND_AND_RUN'
 };
 
@@ -93,6 +95,15 @@ export const KBKSetReturn = {
     NotFound: -1,
     EditedFromBucket: 0,
     EditedFromWaitlist: 1
+};
+
+/**
+ * Return values of the {@link KBucketh.update} method
+ */
+export const KBKUpdateReturn = {
+    NotFound: -1,
+    UpdatedFromBucket: 0,
+    UpdatedFromWaitlist: 1
 };
 
 /**
@@ -142,6 +153,12 @@ interface IKBKSet {
 }
 
 /**
+ * Action interface for the Update logic.
+ */
+interface IKBKUpdate {
+}
+
+/**
  * Interface for the Action functions store.
  */
 interface IActionStore {
@@ -185,7 +202,8 @@ export class KBucketh {
                     peerID: action.peerID,
                     distance: action.distance,
                     bit_distance: action.bit_distance,
-                    data: action.payload.data
+                    data: action.payload.data,
+                    last_action: Date.now()
                 });
                 return 1;
             } else {
@@ -194,7 +212,8 @@ export class KBucketh {
                     peerID: action.peerID,
                     distance: action.distance,
                     bit_distance: action.bit_distance,
-                    data: action.payload.data
+                    data: action.payload.data,
+                    last_action: Date.now()
                 });
                 this._peer_id_registry.peers.push(action.peerID);
                 return 0;
@@ -284,6 +303,47 @@ export class KBucketh {
             } else return -1;
         };
 
+        this._actions[KBKActionTypes.Update] = (action: IKBKAction<IKBKUpdate>): number => {
+            if (this._bucket.length === 0) {
+
+                return -1;
+
+            } else if (this._bucket.filter(
+                (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
+
+                this._bucket = this._bucket
+                    .map((elem: IPeer) => {
+                        if (_.isEqual(elem.peerID, action.peerID)) {
+                            return {
+                                ...elem,
+                                last_action: Date.now()
+                            };
+                        } else return elem;
+                    })
+                    .sort((a: IPeer, b: IPeer) => b.last_action - a.last_action);
+
+                return 0;
+
+            } else if (this._waitlist_bucket.filter(
+                (elem: IPeer) => (_.isEqual(elem.peerID, action.peerID))).length) {
+
+                this._waitlist_bucket = this._waitlist_bucket
+                    .map((elem: IPeer) => {
+                        if (_.isEqual(elem.peerID, action.peerID)) {
+                            return {
+                                ...elem,
+                                last_action: Date.now()
+                            };
+                        } else return elem;
+                    })
+                    .sort((a: IPeer, b: IPeer) => b.last_action - a.last_action);
+
+                return 1;
+
+            } else return -1;
+
+        };
+
     }
 
     /**
@@ -319,6 +379,22 @@ export class KBucketh {
      */
     public get size(): number {
         return this._bucket.length;
+    }
+
+    /**
+     * Return ordered list of peers in the bucket.
+     */
+    public get list(): string[] {
+        return this._bucket
+            .map((e: IPeer) => deserialize(e.peerID));
+    }
+
+    /**
+     * Return ordered list of peers in the bucket wailist.
+     */
+    public get waitlist(): string[] {
+        return this._waitlist_bucket
+            .map((e: IPeer) => deserialize(e.peerID));
     }
 
     /**
@@ -426,6 +502,29 @@ export class KBucketh {
         return this.exec<IKBKSet>(action_payload);
     }
 
+    /**
+     * Update last action timestamp of the peer.
+     *
+     * @param {any} peer_id The Peer ID from which we want to update last action timestamp
+     */
+    public update(peer_id: any): number {
+        const serialized: Uint8Array = serialize(peer_id);
+        const action_payload: IKBKAction<IKBKUpdate> = {
+            type: KBKActionTypes.Update,
+            payload: null,
+            peerID: serialized,
+            distance: distance(this._peer_id, serialized),
+            bit_distance: bitDistance(this._peer_id, serialized)
+        };
+        return this.exec<IKBKUpdate>(action_payload);
+    }
+
+    /**
+     * Get the nearest peer by xor distance from the required Peer ID.
+     *
+     * @param {any} peer_id Peer ID from which we seek the neighbours.
+     * @param {number} amount Amount of Neighours requested.
+     */
     public getNearest(peer_id: any, amount: number): string[] {
         const serialized = serialize(peer_id);
         return this._peer_id_registry.peers

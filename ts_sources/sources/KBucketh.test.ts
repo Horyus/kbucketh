@@ -2,10 +2,10 @@ declare var describe;
 declare var test;
 declare var expect;
 
-import { create, KBKAddReturn, KBKRemoveReturn, KBKSetReturn, KBucketh } from './KBucketh';
-import { deserialize, serialize, getBucketByID, bitDistance, distance }  from './Utility';
-import * as RandomString                                                 from 'randomstring';
-import * as _                                                            from 'lodash';
+import { create, KBKAddReturn, KBKRemoveReturn, KBKSetReturn, KBKUpdateReturn, KBucketh } from './KBucketh';
+import { deserialize, serialize, getBucketByID, bitDistance, distance }                   from './Utility';
+import * as RandomString                                                                  from 'randomstring';
+import * as _                                                                             from 'lodash';
 
 const my_id = '0x' + RandomString.generate({length: 40, charset: 'hex'});
 const other_id: string = deserialize(serialize('0x' + RandomString.generate({length: 40, charset: 'hex'})));
@@ -23,6 +23,8 @@ ids.push(serialize('0x0000000000000000000000000000000000000001'));
 ids.push(serialize('0x0000000000000000000000000000000000000100'));
 ids.push(serialize('0x0000000000000000000000000000010000000000'));
 ids.push(serialize('0x1010101010101010101010101010101010101010'));
+
+type Done = (arg?: any) => void;
 
 describe('KBucketh Test Suite', () => {
 
@@ -264,6 +266,64 @@ describe('KBucketh Test Suite', () => {
             bucket.add<number>('0x0000000000000000000000000000000000000005', 12);
             const ret = bucket.set<string>('0x0000000000000000000000000000000000000004', 'hi');
             expect(ret).toBe(KBKSetReturn.NotFound);
+        });
+
+    });
+
+    describe('update', () => {
+
+        test('Update timestamp of empty bucket', () => {
+            const bucket = create('0x0000000000000000000000000000000000000000');
+            const ret = bucket.update('0x0000000000000000000000000000000000000002');
+            expect(ret).toBe(KBKUpdateReturn.NotFound);
+        });
+
+        test('Update peer from bucket', (done: Done) => {
+            let bucket = create('0x0000000000000000000000000000000000000000');
+            bucket.add<number>('0x0000000000000000000000000000000000000005', 12);
+            bucket.add<number>('0x0000000000000000000000000000000000000004', 12);
+            const ret = bucket.get('0x0000000000000000000000000000000000000005');
+            expect(ret.waitlist).toBe(false);
+            expect(ret.bucketID).toBe(2);
+            expect(ret.data).toBe(12);
+            bucket = getBucketByID(2, bucket);
+            expect(bucket.list[0]).toBe('0x0000000000000000000000000000000000000004');
+            setTimeout(() => {
+                const ret = bucket.update('0x0000000000000000000000000000000000000005');
+                if (ret !== KBKUpdateReturn.UpdatedFromBucket) return done(new Error('Invalid returned value'));
+                return done((bucket.list[0] === '0x0000000000000000000000000000000000000005') ? undefined : new Error('Invalid peer in head of list'));
+            }, 1000);
+        });
+
+        test('Update peer from waitlist', (done: Done) => {
+            let bucket = create('0x0000000000000000000000000000000000000000');
+            while (bucket.size < bucket.limit) {
+                bucket.add<void>('0x' + RandomString.generate({length: 40, charset: 'hex'}), void 0);
+            }
+            let waitlist_address;
+            let waitlist_ret;
+            while (bucket.waitlist_size <= 1) {
+                waitlist_address = '0x' + RandomString.generate({length: 40, charset: 'hex'});
+                waitlist_ret = bucket.add<number>(waitlist_address, 25);
+            }
+            const ret = bucket.get(waitlist_address);
+            expect(ret.waitlist).toBe(true);
+            expect(ret.data).toBe(25);
+            bucket = getBucketByID(ret.bucketID, bucket);
+            const second_in_waitlist = bucket.waitlist[1];
+            setTimeout(() => {
+                const ret = bucket.update(second_in_waitlist);
+                if (ret !== KBKUpdateReturn.UpdatedFromWaitlist) return done(new Error('Invalid returned value'));
+                return done((bucket.waitlist[0] === second_in_waitlist) ? undefined : new Error('Invalid peer in head of list'));
+            }, 1000);
+
+        });
+
+        test('Update non existing peer in non empty bucket', () => {
+            const bucket = create('0x0000000000000000000000000000000000000000');
+            bucket.add<number>('0x0000000000000000000000000000000000000005', 12);
+            const ret = bucket.update('0x0000000000000000000000000000000000000004');
+            expect(ret).toBe(KBKUpdateReturn.NotFound);
         });
 
     });
