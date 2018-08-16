@@ -36,7 +36,7 @@ export function create(peer_id: any, config?: ICreateConfig): KBucketh {
 /**
  * Interface representing a Peer
  */
-export interface IPeer {
+interface IPeer {
     peerID: Uint8Array;
     distance: number;
     bit_distance: number;
