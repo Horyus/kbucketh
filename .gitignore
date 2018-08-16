@@ -1,0 +1,6 @@
+node_modules
+/sources
+/index.js
+/coverage
+.idea
+/generated_doc
